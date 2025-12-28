@@ -1,0 +1,158 @@
+name: CI - Автоматическое тестирование
+
+on:
+  push:
+    branches: [ main, master, develop ]
+  pull_request:
+    branches: [ main, master, develop ]
+
+jobs:
+  build-and-test:
+    name: Сборка и тестирование
+    runs-on: ${{ matrix.os }}
+    
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        build_type: [Debug, Release]
+        
+    steps:
+    - name: Checkout кода
+      uses: actions/checkout@v4
+
+    - name: Установка зависимостей (Ubuntu)
+      if: runner.os == 'Linux'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y cmake g++ ninja-build
+
+    - name: Установка зависимостей (macOS)
+      if: runner.os == 'macOS'
+      run: |
+        brew install cmake ninja
+
+    - name: Кэширование CMake build
+      uses: actions/cache@v3
+      with:
+        path: build
+        key: ${{ runner.os }}-${{ matrix.build_type }}-build-${{ hashFiles('**/CMakeLists.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-${{ matrix.build_type }}-build-
+
+    - name: Конфигурация CMake
+      run: |
+        cmake -B build -G Ninja \
+          -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
+          -DCMAKE_CXX_STANDARD=17
+
+    - name: Сборка проекта
+      run: cmake --build build --config ${{ matrix.build_type }}
+
+    - name: Запуск Unit тестов
+      working-directory: build
+      run: |
+        echo "🧪 Запуск Unit тестов..."
+        ./unit_tests --gtest_output=xml:unit_test_results.xml
+
+    - name: Запуск Контрактных тестов
+      working-directory: build
+      run: |
+        echo "📋 Запуск Контрактных тестов..."
+        ./contract_tests --gtest_output=xml:contract_test_results.xml
+
+    - name: Запуск Интеграционных тестов
+      working-directory: build
+      run: |
+        echo "🔗 Запуск Интеграционных тестов..."
+        ./integration_tests --gtest_output=xml:integration_test_results.xml
+
+    - name: Загрузка результатов тестов
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: test-results-${{ matrix.os }}-${{ matrix.build_type }}
+        path: build/*_test_results.xml
+
+  # Отдельный job для анализа кода
+  code-analysis:
+    name: Статический анализ
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout кода
+      uses: actions/checkout@v4
+
+    - name: Установка инструментов анализа
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y cppcheck cmake g++
+
+    - name: Запуск cppcheck
+      run: |
+        cppcheck --enable=all --inconclusive --std=c++17 \
+          --suppress=missingIncludeSystem \
+          --error-exitcode=1 \
+          -I include src/ tests/
+      continue-on-error: true
+
+    - name: Конфигурация CMake для compile_commands.json
+      run: cmake -B build -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+
+  # Job для создания отчета о покрытии (только на Linux)
+  coverage:
+    name: Покрытие кода
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout кода
+      uses: actions/checkout@v4
+
+    - name: Установка зависимостей
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y cmake g++ ninja-build lcov
+
+    - name: Сборка с покрытием
+      run: |
+        cmake -B build -G Ninja \
+          -DCMAKE_BUILD_TYPE=Debug \
+          -DCMAKE_CXX_FLAGS="--coverage -fprofile-arcs -ftest-coverage"
+        cmake --build build
+
+    - name: Запуск всех тестов
+      working-directory: build
+      run: |
+        ./unit_tests
+        ./contract_tests
+        ./integration_tests
+
+    - name: Генерация отчета о покрытии
+      run: |
+        lcov --capture --directory build --output-file coverage.info
+        lcov --remove coverage.info '/usr/*' '*/googletest/*' --output-file coverage.info
+        lcov --list coverage.info
+
+    - name: Загрузка отчета о покрытии
+      uses: actions/upload-artifact@v4
+      with:
+        name: coverage-report
+        path: coverage.info
+
+  # Итоговый статус
+  test-summary:
+    name: Итоговый статус
+    needs: [build-and-test, code-analysis, coverage]
+    runs-on: ubuntu-latest
+    if: always()
+    
+    steps:
+    - name: Проверка статуса тестов
+      run: |
+        if [ "${{ needs.build-and-test.result }}" == "success" ]; then
+          echo "✅ Все тесты прошли успешно!"
+        else
+          echo "❌ Некоторые тесты провалились"
+          exit 1
+        fi
+
