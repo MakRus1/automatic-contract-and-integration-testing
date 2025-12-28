@@ -1,6 +1,6 @@
 # Автоматизация контрактного и интеграционного тестирования
 
-![CI Status](https://github.com/YOUR_USERNAME/automatic-contract-and-integration-testing/actions/workflows/ci.yml/badge.svg)
+![CI Status](https://github.com/MakRus1/automatic-contract-and-integration-testing/actions/workflows/ci.yml/badge.svg)
 
 Демонстрационный проект на C++ для изучения автоматизации контрактного и интеграционного тестирования с использованием GitHub Actions.
 
