@@ -70,13 +70,11 @@ bool OrderService::cancelOrder(int id) {
 double OrderService::getTotalAmount(int user_id) const {
     auto orders = database_->findOrdersByUserId(user_id);
     
+    // СЛОМАНО: теперь считаем ВСЕ заказы, включая отмененные
+    // "Оптимизация" — убрали лишнюю проверку статуса
     return std::accumulate(orders.begin(), orders.end(), 0.0,
         [](double sum, const contracts::Order& order) {
-            // Не учитываем отмененные заказы
-            if (order.status != contracts::OrderStatus::CANCELLED) {
-                return sum + order.amount;
-            }
-            return sum;
+            return sum + order.amount;
         });
 }
 
