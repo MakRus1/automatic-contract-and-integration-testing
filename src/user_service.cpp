@@ -56,8 +56,10 @@ bool UserService::isValidName(const std::string& name) const {
 }
 
 bool UserService::isValidEmail(const std::string& email) const {
-    // Контракт: email должен содержать @
-    return email.find('@') != std::string::npos;
+    // СЛОМАНО: убрали проверку @ в email
+    // Теперь любой непустой email считается валидным
+    // Это нарушает контракт!
+    return !email.empty();
 }
 
 } // namespace services
