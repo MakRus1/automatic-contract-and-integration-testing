@@ -195,14 +195,3 @@ ctest --output-on-failure
 ├── CMakeLists.txt
 └── README.md
 ```
-
-## 📚 Полезные материалы
-
-- [Google Test Documentation](https://google.github.io/googletest/)
-- [Contract Testing (Martin Fowler)](https://martinfowler.com/bliki/ContractTest.html)
-- [Integration Testing](https://martinfowler.com/bliki/IntegrationTest.html)
-- [GitHub Actions Documentation](https://docs.github.com/en/actions)
-
-## 📝 Лицензия
-
-MIT License - свободное использование для образовательных целей.
