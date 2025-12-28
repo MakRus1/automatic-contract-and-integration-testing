@@ -10,6 +10,9 @@ out/
 *.swo
 *~
 
+# Clangd cache
+.cache/
+
 # Compiled files
 *.o
 *.a
